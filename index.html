@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatApp - WhatsApp Web</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        wa: {
+                            bg: '#0b141a',
+                            panel: '#111b21',
+                            header: '#202c33',
+                            input: '#2a3942',
+                            green: '#00a884',
+                            hover: '#2a3942',
+                            outgoing: '#005c4b',
+                            incoming: '#202c33',
+                            border: '#222d34'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom scrollbar styling for WhatsApp feel */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        .chat-bg {
+            background-color: #0b141a;
+            background-image: radial-gradient(#1f2c34 1px, transparent 0);
+            background-size: 24px 24px;
+        }
+    </style>
+</head>
+<body class="bg-wa-bg text-slate-200 h-full font-sans antialiased flex flex-col justify-between overflow-hidden">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- AUTH MODAL (Login / Register) -->
+    <div id="auth-screen" class="fixed inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div class="bg-wa-panel w-full max-w-md p-6 sm:p-8 rounded-2xl shadow-2xl border border-wa-border relative">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-wa-green text-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg text-2xl">
+                    <i class="fa-brands fa-whatsapp"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-white" id="auth-title">Iniciar Sesión</h2>
+                <p class="text-slate-400 text-sm mt-1" id="auth-subtitle">Ingresa tu número y contraseña para entrar</p>
+            </div>
+
+            <!-- TAB SWITCH -->
+            <div class="flex bg-wa-header rounded-xl p-1 mb-6 border border-wa-border">
+                <button id="tab-login-btn" onclick="switchAuthTab('login')" class="flex-1 py-2 text-sm font-semibold rounded-lg bg-wa-green text-white transition-all">Ingresar</button>
+                <button id="tab-register-btn" onclick="switchAuthTab('register')" class="flex-1 py-2 text-sm font-semibold rounded-lg text-slate-400 hover:text-white transition-all">Crear Cuenta</button>
+            </div>
+
+            <!-- LOGIN FORM -->
+            <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Número de Teléfono</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500"><i class="fa-solid fa-phone"></i></span>
+                        <input type="tel" id="login-phone" required placeholder="Ej: 099123456" class="w-full bg-wa-input border border-transparent focus:border-wa-green rounded-xl py-2.5 pl-10 pr-4 text-white text-sm outline-none transition-all">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Contraseña</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500"><i class="fa-solid fa-lock"></i></span>
+                        <input type="password" id="login-password" required placeholder="••••••••" class="w-full bg-wa-input border border-transparent focus:border-wa-green rounded-xl py-2.5 pl-10 pr-4 text-white text-sm outline-none transition-all">
+                    </div>
+                </div>
+                <button type="submit" id="login-submit-btn" class="w-full bg-wa-green hover:bg-emerald-600 text-white font-semibold py-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2">
+                    <span>Entrar a WhatsApp</span>
+                    <i class="fa-solid fa-arrow-right text-xs"></i>
+                </button>
+            </form>
+
+            <!-- REGISTER FORM -->
+            <form id="register-form" onsubmit="handleRegister(event)" class="space-y-4 hidden">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Nombre de Usuario</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500"><i class="fa-solid fa-user"></i></span>
+                        <input type="text" id="reg-username" required placeholder="Ej: Maria Lopez" class="w-full bg-wa-input border border-transparent focus:border-wa-green rounded-xl py-2.5 pl-10 pr-4 text-white text-sm outline-none transition-all">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Número de Teléfono</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500"><i class="fa-solid fa-phone"></i></span>
+                        <input type="tel" id="reg-phone" required placeholder="Ej: 099123456" class="w-full bg-wa-input border border-transparent focus:border-wa-green rounded-xl py-2.5 pl-10 pr-4 text-white text-sm outline-none transition-all">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Contraseña</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500"><i class="fa-solid fa-lock"></i></span>
+                        <input type="password" id="reg-password" required placeholder="Crea una contraseña" class="w-full bg-wa-input border border-transparent focus:border-wa-green rounded-xl py-2.5 pl-10 pr-4 text-white text-sm outline-none transition-all">
+                    </div>
+                </div>
+                <button type="submit" id="reg-submit-btn" class="w-full bg-wa-green hover:bg-emerald-600 text-white font-semibold py-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2">
+                    <span>Crear Cuenta</span>
+                    <i class="fa-solid fa-user-plus text-xs"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APP CONTAINER -->
+    <div id="app-container" class="w-full h-full flex overflow-hidden">
+
+        <!-- LEFT SIDEBAR (CONTACTS & CHATS LIST) -->
+        <aside id="sidebar" class="w-full md:w-80 lg:w-96 bg-wa-panel border-r border-wa-border flex flex-col h-full flex-shrink-0 transition-all duration-300">
+            <!-- Sidebar Header -->
+            <div class="h-16 bg-wa-header px-4 flex items-center justify-between border-b border-wa-border">
+                <div class="flex items-center space-x-3">
+                    <div id="user-avatar" class="w-10 h-10 rounded-full bg-wa-green text-white flex items-center justify-center font-bold text-base shadow">
+                        ?
+                    </div>
+                    <div>
+                        <h1 id="user-display-name" class="font-semibold text-white text-sm leading-tight">Cargando...</h1>
+                        <p id="user-display-phone" class="text-xs text-slate-400"></p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-1 text-slate-400">
+                    <button onclick="openAddContactModal()" title="Agregar contacto por número" class="p-2.5 hover:bg-wa-hover hover:text-white rounded-full transition-colors">
+                        <i class="fa-solid fa-user-plus"></i>
+                    </button>
+                    <button onclick="handleLogout()" title="Cerrar Sesión" class="p-2.5 hover:bg-wa-hover hover:text-rose-400 rounded-full transition-colors">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="p-3 bg-wa-panel border-b border-wa-border">
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                        <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                    </span>
+                    <input type="text" id="contact-search-input" oninput="filterContactsList()" placeholder="Buscar un chat o contacto..." class="w-full bg-wa-input text-slate-200 placeholder-slate-400 text-xs rounded-lg pl-9 pr-4 py-2 border border-transparent focus:border-wa-green outline-none">
+                </div>
+            </div>
+
+            <!-- Contacts List -->
+            <div class="flex-1 overflow-y-auto" id="contacts-container">
+                <div id="empty-contacts-msg" class="p-8 text-center text-slate-500 text-sm">
+                    <i class="fa-solid fa-address-book text-3xl mb-3 block opacity-40"></i>
+                    No tienes contactos agregados.<br>Haz clic en el ícono <i class="fa-solid fa-user-plus"></i> arriba para agregar uno por teléfono.
+                </div>
+                <div id="contacts-list" class="divide-y divide-wa-border/30"></div>
+            </div>
+        </aside>
+
+        <!-- RIGHT CHAT AREA -->
+        <main id="chat-window" class="hidden md:flex flex-1 flex-col h-full bg-wa-bg chat-bg relative">
+            
+            <!-- Default Placeholder Screen (When no chat is selected) -->
+            <div id="no-chat-selected" class="flex-1 flex flex-col items-center justify-center p-6 text-center">
+                <div class="w-24 h-24 rounded-full bg-wa-header flex items-center justify-center text-wa-green text-4xl mb-4 border border-wa-border shadow-xl">
+                    <i class="fa-brands fa-whatsapp"></i>
+                </div>
+                <h3 class="text-xl font-bold text-white mb-2">WhatsApp Web para Navegador</h3>
+                <p class="text-slate-400 text-sm max-w-sm">Envía y recibe mensajes con tus contactos agregados por número de teléfono en tiempo real.</p>
+                <div class="mt-6 inline-flex items-center gap-2 text-xs text-slate-500 bg-wa-header px-4 py-2 rounded-full border border-wa-border">
+                    <i class="fa-solid fa-lock text-wa-green"></i>
+                    Sincronización en la nube activa
+                </div>
+            </div>
+
+            <!-- Active Chat Interface -->
+            <div id="active-chat" class="hidden flex-1 flex flex-col h-full overflow-hidden">
+                <!-- Chat Header -->
+                <div class="h-16 bg-wa-header px-4 flex items-center justify-between border-b border-wa-border z-10">
+                    <div class="flex items-center space-x-3">
+                        <button onclick="closeMobileChat()" class="md:hidden text-slate-400 hover:text-white mr-1 p-2">
+                            <i class="fa-solid fa-arrow-left"></i>
+                        </button>
+                        <div id="active-contact-avatar" class="w-10 h-10 rounded-full bg-slate-700 text-white flex items-center justify-center font-bold text-sm shadow">
+                            ?
+                        </div>
+                        <div>
+                            <h2 id="active-contact-name" class="font-semibold text-white text-sm">Contacto</h2>
+                            <p id="active-contact-phone" class="text-xs text-slate-400">+598 ...</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2 text-slate-400">
+                        <button class="p-2 hover:bg-wa-hover hover:text-white rounded-full transition-colors" title="Buscar mensajes">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Messages Scrollable Body -->
+                <div id="messages-container" class="flex-1 overflow-y-auto p-4 space-y-3">
+                    <!-- Messages will be rendered dynamically here -->
+                </div>
+
+                <!-- Message Input Bar -->
+                <div class="bg-wa-header p-3 border-t border-wa-border flex items-center gap-2">
+                    <button class="text-slate-400 hover:text-white p-2 rounded-full transition-colors">
+                        <i class="fa-regular fa-face-smile text-lg"></i>
+                    </button>
+                    <form id="message-form" onsubmit="handleSendMessage(event)" class="flex-1 flex items-center gap-2">
+                        <input type="text" id="message-input" autocomplete="off" placeholder="Escribe un mensaje aquí..." class="flex-1 bg-wa-input text-white text-sm placeholder-slate-400 rounded-xl px-4 py-2.5 outline-none border border-transparent focus:border-wa-green transition-all">
+                        <button type="submit" class="bg-wa-green hover:bg-emerald-600 text-white w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-md flex-shrink-0">
+                            <i class="fa-solid fa-paper-plane text-xs"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL: ADD CONTACT -->
+    <div id="add-contact-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 hidden">
+        <div class="bg-wa-panel w-full max-w-sm p-6 rounded-2xl shadow-2xl border border-wa-border">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-user-plus text-wa-green"></i>
+                    Agregar Contacto
+                </h3>
+                <button onclick="closeAddContactModal()" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <p class="text-slate-400 text-xs mb-4">Ingresa el número de teléfono registrado de la persona con la que quieres hablar.</p>
+            <form onsubmit="handleAddContact(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Número de Teléfono</label>
+                    <input type="tel" id="new-contact-phone" required placeholder="Ej: 099123456" class="w-full bg-wa-input border border-transparent focus:border-wa-green rounded-xl py-2 px-3 text-white text-sm outline-none">
+                </div>
+                <div class="flex gap-2 justify-end pt-2">
+                    <button type="button" onclick="closeAddContactModal()" class="px-4 py-2 text-xs font-semibold text-slate-400 hover:bg-wa-hover rounded-xl">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 text-xs font-semibold bg-wa-green hover:bg-emerald-600 text-white rounded-xl shadow">Buscar y Agregar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Firebase App Modules -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, getDocs, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global Firebase Configuration & Global Variables
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'whatsapp-clone-v1';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "demo-api-key",
+            authDomain: "demo-app.firebaseapp.com",
+            projectId: "demo-app",
+            storageBucket: "demo-app.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:demo"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // App Application State
+        let currentUser = null; // { phone, username, uid }
+        let allProfiles = [];   // List of all registered user profiles
+        let userContacts = [];  // List of added contacts for the active user
+        let activeContact = null; // Currently selected contact object
+        let allMessages = [];   // Global array of messages
+
+        // Firestore Strict Path Definitions (Mandatory Rule 1)
+        const PROFILES_COL = collection(db, 'artifacts', appId, 'public', 'data', 'profiles');
+        const MESSAGES_COL = collection(db, 'artifacts', appId, 'public', 'data', 'messages');
+
+
+        // Initialize Firebase Authentication (Mandatory Rule 3)
+        async function initAuth() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (err) {
+                console.error("Auth init error:", err);
+            }
+        }
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                checkSavedSession();
+                listenToProfiles();
+                listenToMessages();
+            }
+        });
+
+        // Toast Notification System
+        window.showToast = function(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgClass = type === 'error' ? 'bg-rose-600' : type === 'success' ? 'bg-wa-green' : 'bg-slate-700';
+            
+            toast.className = `${bgClass} text-white px-4 py-3 rounded-xl shadow-xl text-xs font-medium flex items-center gap-2 transition-all duration-300 transform translate-y-2 opacity-0 pointer-events-auto`;
+            toast.innerHTML = `<i class="fa-solid ${type === 'error' ? 'fa-circle-exclamation' : 'fa-circle-check'}"></i> <span>${message}</span>`;
+            
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', '-translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        };
+
+        // Switch Auth Tab UI
+        window.switchAuthTab = function(tab) {
+            const loginForm = document.getElementById('login-form');
+            const regForm = document.getElementById('register-form');
+            const loginBtn = document.getElementById('tab-login-btn');
+            const regBtn = document.getElementById('tab-register-btn');
+            const title = document.getElementById('auth-title');
+            const subtitle = document.getElementById('auth-subtitle');
+
+            if (tab === 'login') {
+                loginForm.classList.remove('hidden');
+                regForm.classList.add('hidden');
+                loginBtn.className = "flex-1 py-2 text-sm font-semibold rounded-lg bg-wa-green text-white transition-all";
+                regBtn.className = "flex-1 py-2 text-sm font-semibold rounded-lg text-slate-400 hover:text-white transition-all";
+                title.innerText = "Iniciar Sesión";
+                subtitle.innerText = "Ingresa tu número y contraseña para entrar";
+            } else {
+                loginForm.classList.add('hidden');
+                regForm.classList.remove('hidden');
+                regBtn.className = "flex-1 py-2 text-sm font-semibold rounded-lg bg-wa-green text-white transition-all";
+                loginBtn.className = "flex-1 py-2 text-sm font-semibold rounded-lg text-slate-400 hover:text-white transition-all";
+                title.innerText = "Crear Cuenta";
+                subtitle.innerText = "Registra tus datos para empezar a chatear";
+            }
+        };
+
+        // Handle Register Submission
+        window.handleRegister = async function(e) {
+            e.preventDefault();
+            if (!auth.currentUser) return;
+
+            const username = document.getElementById('reg-username').value.trim();
+            const phone = document.getElementById('reg-phone').value.trim();
+            const password = document.getElementById('reg-password').value;
+
+            if (!username || !phone || !password) {
+                showToast("Por favor completa todos los campos", "error");
+                return;
+            }
+
+            // Check if phone already registered (In-memory check following Rule 2)
+            const existing = allProfiles.find(p => p.phone === phone);
+            if (existing) {
+                showToast("Este número de teléfono ya está registrado.", "error");
+                return;
+            }
+
+            try {
+                // Create profile doc in Firestore (Public data collection)
+                const profileDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', phone);
+                const newProfile = {
+                    username,
+                    phone,
+                    password, // Simple account creation
+                    createdAt: Date.now(),
+                    contacts: []
+                };
+
+                await setDoc(profileDocRef, newProfile);
+                showToast("¡Cuenta creada con éxito! Ahora inicia sesión.", "success");
+                
+                // Clear form & switch to login
+                document.getElementById('register-form').reset();
+                switchAuthTab('login');
+                document.getElementById('login-phone').value = phone;
+            } catch (err) {
+                console.error("Error creating profile:", err);
+                showToast("Error al crear la cuenta. Inténtalo de nuevo.", "error");
+            }
+        };
+
+        // Handle Login Submission
+        window.handleLogin = async function(e) {
+            e.preventDefault();
+            const phone = document.getElementById('login-phone').value.trim();
+            const password = document.getElementById('login-password').value;
+
+            const profile = allProfiles.find(p => p.phone === phone);
+            if (!profile) {
+                showToast("El número de teléfono no existe.", "error");
+                return;
+            }
+
+            if (profile.password !== password) {
+                showToast("Contraseña incorrecta.", "error");
+                return;
+            }
+
+            // Set current user state & Save in Session
+            setCurrentUserSession(profile);
+            showToast(`¡Bienvenido de nuevo, ${profile.username}!`, "success");
+        };
+
+        function setCurrentUserSession(profile) {
+            currentUser = profile;
+            localStorage.setItem('wa_user_phone', profile.phone);
+            
+            // UI Updates
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('user-display-name').innerText = profile.username;
+            document.getElementById('user-display-phone').innerText = profile.phone;
+            document.getElementById('user-avatar').innerText = profile.username.charAt(0).toUpperCase();
+
+            // Load saved contacts for this user
+            userContacts = profile.contacts || [];
+            renderContactsList();
+        }
+
+        function checkSavedSession() {
+            const savedPhone = localStorage.getItem('wa_user_phone');
+            if (savedPhone && allProfiles.length > 0) {
+                const profile = allProfiles.find(p => p.phone === savedPhone);
+                if (profile) {
+                    setCurrentUserSession(profile);
+                }
+            }
+        }
+
+        window.handleLogout = function() {
+            currentUser = null;
+            activeContact = null;
+            localStorage.removeItem('wa_user_phone');
+            document.getElementById('auth-screen').classList.remove('hidden');
+            document.getElementById('login-form').reset();
+            document.getElementById('active-chat').classList.add('hidden');
+            document.getElementById('no-chat-selected').classList.remove('hidden');
+            showToast("Sesión cerrada correctamente", "info");
+        };
+
+
+        // Real-time listener for profiles (Rule 2 compliant: fetch simple collection, filter in memory)
+        function listenToProfiles() {
+            onSnapshot(PROFILES_COL, (snapshot) => {
+                allProfiles = [];
+                snapshot.forEach(doc => {
+                    allProfiles.push(doc.data());
+                });
+
+                // Update current user details if logged in
+                if (currentUser) {
+                    const updatedMe = allProfiles.find(p => p.phone === currentUser.phone);
+                    if (updatedMe) {
+                        currentUser = updatedMe;
+                        userContacts = updatedMe.contacts || [];
+                        renderContactsList();
+                    }
+                } else {
+                    checkSavedSession();
+                }
+            }, (error) => {
+                console.error("Profiles listener error:", error);
+            });
+        }
+
+        // Real-time listener for all messages across chats
+        function listenToMessages() {
+            onSnapshot(MESSAGES_COL, (snapshot) => {
+                allMessages = [];
+                snapshot.forEach(doc => {
+                    allMessages.push({ id: doc.id, ...doc.data() });
+                });
+
+                // Re-render chat UI if active
+                if (activeContact) {
+                    renderActiveChatMessages();
+                }
+                renderContactsList(); // To update last message previews
+            }, (error) => {
+                console.error("Messages listener error:", error);
+            });
+        }
+
+
+        window.openAddContactModal = function() {
+            if (!currentUser) {
+                showToast("Debes iniciar sesión primero", "error");
+                return;
+            }
+            document.getElementById('add-contact-modal').classList.remove('hidden');
+        };
+
+        window.closeAddContactModal = function() {
+            document.getElementById('add-contact-modal').classList.add('hidden');
+            document.getElementById('new-contact-phone').value = '';
+        };
+
+        window.handleAddContact = async function(e) {
+            e.preventDefault();
+            if (!currentUser) return;
+
+            const phone = document.getElementById('new-contact-phone').value.trim();
+
+            if (phone === currentUser.phone) {
+                showToast("No puedes agregarte a ti mismo como contacto.", "error");
+                return;
+            }
+
+            // Find target profile
+            const targetProfile = allProfiles.find(p => p.phone === phone);
+            if (!targetProfile) {
+                showToast("No se encontró ningún usuario con ese número.", "error");
+                return;
+            }
+
+            // Check if already in contact list
+            if (userContacts.some(cPhone => cPhone === phone)) {
+                showToast("Este usuario ya está en tu lista de contactos.", "info");
+                closeAddContactModal();
+                return;
+            }
+
+            // Add to user contacts array in Firestore
+            try {
+                const updatedContacts = [...userContacts, phone];
+                const userDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', currentUser.phone);
+                await setDoc(userDocRef, { contacts: updatedContacts }, { merge: true });
+
+                userContacts = updatedContacts;
+                currentUser.contacts = updatedContacts;
+                showToast(`Contacto ${targetProfile.username} agregado correctamente.`, "success");
+                closeAddContactModal();
+                renderContactsList();
+            } catch (err) {
+                console.error("Error adding contact:", err);
+                showToast("Error al guardar el contacto.", "error");
+            }
+        };
+
+
+        window.filterContactsList = function() {
+            renderContactsList();
+        };
+
+        function renderContactsList() {
+            const container = document.getElementById('contacts-list');
+            const emptyMsg = document.getElementById('empty-contacts-msg');
+            const query = document.getElementById('contact-search-input').value.toLowerCase().trim();
+
+            container.innerHTML = '';
+
+            if (userContacts.length === 0) {
+                emptyMsg.classList.remove('hidden');
+                return;
+            }
+
+            emptyMsg.classList.add('hidden');
+
+            // Map phone numbers to profiles
+            let contactsData = userContacts
+                .map(phone => allProfiles.find(p => p.phone === phone))
+                .filter(p => p !== undefined);
+
+            if (query) {
+                contactsData = contactsData.filter(c => 
+                    c.username.toLowerCase().includes(query) || c.phone.includes(query)
+                );
+            }
+
+            if (contactsData.length === 0) {
+                container.innerHTML = '<div class="p-4 text-center text-slate-500 text-xs">No se encontraron contactos</div>';
+                return;
+            }
+
+            contactsData.forEach(contact => {
+                // Get last message between me and this contact
+                const chatId = getChatId(currentUser.phone, contact.phone);
+                const chatMsgs = allMessages
+                    .filter(m => m.chatId === chatId)
+                    .sort((a, b) => a.timestamp - b.timestamp);
+
+                const lastMsg = chatMsgs.length > 0 ? chatMsgs[chatMsgs.length - 1] : null;
+                const lastMsgTime = lastMsg ? formatTime(lastMsg.timestamp) : '';
+                const lastMsgText = lastMsg ? (lastMsg.sender === currentUser.phone ? 'Tú: ' : '') + lastMsg.text : 'Haz clic para chatear';
+
+                const isSelected = activeContact && activeContact.phone === contact.phone;
+
+                const item = document.createElement('div');
+                item.className = `flex items-center gap-3 p-3 cursor-pointer hover:bg-wa-hover transition-colors ${isSelected ? 'bg-wa-hover border-l-4 border-wa-green' : ''}`;
+                item.onclick = () => selectContact(contact);
+
+                item.innerHTML = `
+                    <div class="w-12 h-12 rounded-full bg-slate-700 text-white flex items-center justify-center font-bold text-base flex-shrink-0 shadow">
+                        ${contact.username.charAt(0).toUpperCase()}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-baseline mb-1">
+                            <h4 class="font-medium text-white text-sm truncate">${contact.username}</h4>
+                            <span class="text-[11px] text-slate-400 flex-shrink-0">${lastMsgTime}</span>
+                        </div>
+                        <p class="text-xs text-slate-400 truncate">${escapeHTML(lastMsgText)}</p>
+                    </div>
+                `;
+
+                container.appendChild(item);
+            });
+        }
+
+        window.selectContact = function(contact) {
+            activeContact = contact;
+
+            // Update Chat Header
+            document.getElementById('active-contact-avatar').innerText = contact.username.charAt(0).toUpperCase();
+            document.getElementById('active-contact-name').innerText = contact.username;
+            document.getElementById('active-contact-phone').innerText = contact.phone;
+
+            // Show Chat View
+            document.getElementById('no-chat-selected').classList.add('hidden');
+            document.getElementById('active-chat').classList.remove('hidden');
+
+            // Responsive Mobile View Switch
+            document.getElementById('chat-window').classList.remove('hidden');
+            document.getElementById('chat-window').classList.add('flex');
+
+            renderContactsList();
+            renderActiveChatMessages();
+        };
+
+        window.closeMobileChat = function() {
+            document.getElementById('chat-window').classList.add('hidden');
+            document.getElementById('chat-window').classList.remove('flex');
+            activeContact = null;
+            renderContactsList();
+        };
+
+        function renderActiveChatMessages() {
+            if (!activeContact || !currentUser) return;
+
+            const container = document.getElementById('messages-container');
+            container.innerHTML = '';
+
+            const chatId = getChatId(currentUser.phone, activeContact.phone);
+            
+            // Filter messages for current chat and sort chronologically (Rule 2 compliant)
+            const chatMsgs = allMessages
+                .filter(m => m.chatId === chatId)
+                .sort((a, b) => a.timestamp - b.timestamp);
+
+            if (chatMsgs.length === 0) {
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-full text-center p-6">
+                        <div class="bg-wa-header px-4 py-2 rounded-xl text-xs text-slate-400 border border-wa-border shadow">
+                            🔒 Los mensajes están protegidos en la nube. ¡Envía un mensaje para iniciar la conversación!
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            let currentDate = '';
+
+            chatMsgs.forEach(msg => {
+                const msgDate = new Date(msg.timestamp).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+                
+                // Date separator divider
+                if (msgDate !== currentDate) {
+                    currentDate = msgDate;
+                    const dateDiv = document.createElement('div');
+                    dateDiv.className = 'flex justify-center my-3';
+                    dateDiv.innerHTML = `<span class="bg-wa-header text-slate-400 text-[11px] font-medium px-3 py-1 rounded-lg border border-wa-border">${currentDate}</span>`;
+                    container.appendChild(dateDiv);
+                }
+
+                const isOutgoing = msg.sender === currentUser.phone;
+                const msgBubble = document.createElement('div');
+                msgBubble.className = `flex ${isOutgoing ? 'justify-end' : 'justify-start'} mb-1`;
+
+                msgBubble.innerHTML = `
+                    <div class="max-w-[80%] sm:max-w-[65%] rounded-2xl px-3.5 py-2 text-sm shadow-md ${isOutgoing ? 'bg-wa-outgoing text-white rounded-tr-none' : 'bg-wa-incoming text-slate-200 rounded-tl-none'}">
+                        <div class="break-words leading-relaxed">${escapeHTML(msg.text)}</div>
+                        <div class="flex items-center justify-end gap-1 text-[10px] text-slate-300 mt-1">
+                            <span>${formatTime(msg.timestamp)}</span>
+                            ${isOutgoing ? '<i class="fa-solid fa-check-double text-emerald-400 text-[11px]"></i>' : ''}
+                        </div>
+                    </div>
+                `;
+
+                container.appendChild(msgBubble);
+            });
+
+            // Auto Scroll to Bottom
+            container.scrollTop = container.scrollHeight;
+        }
+
+
+        window.handleSendMessage = async function(e) {
+            e.preventDefault();
+            if (!currentUser || !activeContact) return;
+
+            const input = document.getElementById('message-input');
+            const text = input.value.trim();
+
+            if (!text) return;
+
+            const chatId = getChatId(currentUser.phone, activeContact.phone);
+
+            const newMsg = {
+                chatId: chatId,
+                sender: currentUser.phone,
+                receiver: activeContact.phone,
+                text: text,
+                timestamp: Date.now()
+            };
+
+            input.value = '';
+
+            try {
+                // Add message doc to Firestore
+                await addDoc(MESSAGES_COL, newMsg);
+            } catch (err) {
+                console.error("Error sending message:", err);
+                showToast("Error al enviar mensaje.", "error");
+            }
+        };
+
+        // Helper Utility Functions
+        function getChatId(phone1, phone2) {
+            return [phone1, phone2].sort().join('_');
+        }
+
+        function formatTime(timestamp) {
+            if (!timestamp) return '';
+            const d = new Date(timestamp);
+            return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, 
+                tag => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    "'": '&#39;',
+                    '"': '&quot;'
+                }[tag] || tag)
+            );
+        }
+
+        // Initialize Firebase Auth Process
+        initAuth();
+    </script>
+</body>
+</html>
